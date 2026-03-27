@@ -1,0 +1,111 @@
+{
+  "0x0C0": {
+    "name": "vehicle_speed",
+    "unit": "mph",
+    "scale": 0.01,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x190": {
+    "name": "direction",
+    "unit": "enum",
+    "scale": 1,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 1,
+    "signed": false,
+    "enum": { "0": "N", "1": "F", "2": "R" }
+  },
+  "0x205": {
+    "name": "fork_height",
+    "unit": "inches",
+    "scale": 0.1,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x210": {
+    "name": "hyd_pressure",
+    "unit": "PSI",
+    "scale": 1.0,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x215": {
+    "name": "tilt_angle",
+    "unit": "degrees",
+    "scale": 0.1,
+    "offset": -10,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x300": {
+    "name": "seat_switch",
+    "unit": "bool",
+    "scale": 1,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 1,
+    "signed": false
+  },
+  "0x620": {
+    "name": "battery_soc",
+    "unit": "%",
+    "scale": 0.5,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 1,
+    "signed": false
+  },
+  "0x621": {
+    "name": "battery_voltage",
+    "unit": "V",
+    "scale": 0.1,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x625": {
+    "name": "battery_temp",
+    "unit": "°F",
+    "scale": 0.1,
+    "offset": -40,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x1D4": {
+    "name": "motor_current",
+    "unit": "A",
+    "scale": 0.1,
+    "offset": -1000,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x1E0": {
+    "name": "motor_temp",
+    "unit": "°F",
+    "scale": 0.5,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 2,
+    "signed": false
+  },
+  "0x700": {
+    "name": "hour_meter",
+    "unit": "h",
+    "scale": 0.1,
+    "offset": 0,
+    "byte_offset": 0,
+    "byte_length": 4,
+    "signed": false
+  }
+}

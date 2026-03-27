@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forklift Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- SAFETY BAR -->
+  <div id="safety-bar">
+    <div class="safety-zone" id="sz-deadman">
+      <span class="status-dot dot-ok"></span>
+      <span class="sz-label">DEADMAN</span>
+      <span class="sz-value">SEATED</span>
+    </div>
+    <div class="safety-zone" id="sz-tilt">
+      <span class="status-dot dot-ok"></span>
+      <span class="sz-label">MAST TILT</span>
+      <span class="sz-value">0.0&deg;</span>
+    </div>
+    <div class="safety-zone" id="sz-pressure">
+      <span class="status-dot dot-ok"></span>
+      <span class="sz-label">HYD PRESSURE</span>
+      <span class="sz-value">850 PSI</span>
+    </div>
+    <div class="safety-zone" id="sz-load">
+      <span class="status-dot dot-disabled"></span>
+      <span class="sz-label">LOAD SENSOR</span>
+      <span class="sz-value sz-disabled">NOT FITTED</span>
+    </div>
+    <div id="can-status" class="can-connected">
+      <span class="status-dot dot-ok"></span>
+      <span>CAN</span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="main">
+    <!-- LEFT PANEL -->
+    <div id="left-panel">
+      <div id="speed-gauge-container">
+        <canvas id="speed-gauge" width="170" height="120"></canvas>
+        <div id="speed-value">0.0</div>
+        <div id="speed-unit">MPH</div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="direction-indicator">
+        <div class="section-label">DIRECTION</div>
+        <div class="pill-group">
+          <button class="pill pill-f" data-dir="F">F</button>
+          <button class="pill pill-n active" data-dir="N">N</button>
+          <button class="pill pill-r" data-dir="R">R</button>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="traction-mode">
+        <div class="section-label">TRACTION MODE</div>
+        <div class="pill-group">
+          <button class="pill pill-mode" data-mode="ECO">ECO</button>
+          <button class="pill pill-mode active" data-mode="STD">STD</button>
+          <button class="pill pill-mode" data-mode="PWR">PWR</button>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="motor-current-container">
+        <div class="section-label">MOTOR CURRENT</div>
+        <div id="motor-current-bar">
+          <div id="mc-regen" class="mc-bar mc-regen"></div>
+          <div id="mc-divider"></div>
+          <div id="mc-draw" class="mc-bar mc-draw"></div>
+        </div>
+        <div id="mc-labels">
+          <span>REGEN</span>
+          <span id="mc-value">0 A</span>
+          <span>DRAW</span>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="stats-grid">
+        <div class="stat-cell">
+          <div class="section-label">MOTOR TEMP</div>
+          <div class="stat-value" id="motor-temp-val">142&deg;F</div>
+        </div>
+        <div class="stat-cell">
+          <div class="section-label">CTRL TEMP</div>
+          <div class="stat-value" id="ctrl-temp-val">118&deg;F</div>
+        </div>
+        <div class="stat-cell">
+          <div class="section-label">TOTAL HOURS</div>
+          <div class="stat-value" id="total-hours-val">4,218.3</div>
+        </div>
+        <div class="stat-cell">
+          <div class="section-label">NEXT SERVICE</div>
+          <div class="stat-value" id="next-svc-val">281.7 h</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER PANEL -->
+    <div id="center-panel">
+      <div id="canvas-wrapper">
+        <canvas id="three-canvas"></canvas>
+        <canvas id="callout-canvas"></canvas>
+      </div>
+      <div id="fork-height-strip">
+        <div class="section-label" style="margin-right:10px;">FORK HEIGHT</div>
+        <div id="fork-progress-track">
+          <div id="fork-progress-fill"></div>
+        </div>
+        <span id="fork-height-value">0.0"</span>
+        <span id="fork-status-badge" class="badge badge-ok">TRAVEL OK</span>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="right-panel">
+      <div id="battery-hero">
+        <div class="section-label">BATTERY</div>
+        <div id="batt-soc">72<span class="batt-unit">%</span></div>
+        <div id="batt-voltage">48.2 V</div>
+        <div id="batt-soc-bar-track">
+          <div id="batt-soc-bar-fill" style="width:72%"></div>
+        </div>
+        <div id="batt-details">
+          <div class="batt-row"><span class="batt-label">PACK TEMP</span><span class="batt-val" id="batt-temp-val">92&deg;F</span></div>
+          <div class="batt-row"><span class="batt-label">STATE OF HEALTH</span><span class="batt-val" id="batt-soh-val">94%</span></div>
+          <div class="batt-row"><span class="batt-label">CHARGE CYCLES</span><span class="batt-val" id="batt-cycles-val">312</span></div>
+          <div class="batt-row"><span class="batt-label">MIN THRESHOLD</span><span class="batt-val" id="batt-min-val">15%</span></div>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="op-hours-section">
+        <div class="section-label">OPERATING HOURS</div>
+        <div class="op-row"><span>TOTAL</span><span id="op-total-val">4,218.3 h</span></div>
+        <div class="op-row"><span>NEXT PM</span><span id="op-next-val">281.7 h</span></div>
+        <div id="pm-bar-track">
+          <div id="pm-bar-fill" style="width:56%"></div>
+        </div>
+        <div class="section-label" style="text-align:right;margin-top:2px;">PM INTERVAL 500h</div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="hyd-section">
+        <div class="section-label">HYDRAULIC PRESSURE</div>
+        <div id="hyd-gauge-wrap">
+          <canvas id="hyd-gauge" width="120" height="80"></canvas>
+          <div id="hyd-psi-value">850<span class="hyd-unit"> PSI</span></div>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="tilt-section">
+        <div class="section-label">TILT ANGLE</div>
+        <div id="tilt-value">0.0&deg;</div>
+        <div id="tilt-dir">NEUTRAL</div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div id="charge-section">
+        <div class="section-label">CHARGE STATUS</div>
+        <div id="charge-indicator">
+          <span class="status-dot dot-ok" id="charge-dot"></span>
+          <span id="charge-text">NOT CHARGING</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottom-bar">
+    <div id="bb-left">
+      <button class="bb-btn" id="btn-lift-slow">LIFT:SLOW</button>
+      <button class="bb-btn" id="btn-lift-fast">LIFT:FAST</button>
+      <div class="bb-divider"></div>
+      <button class="bb-btn" id="btn-horn">HORN</button>
+      <button class="bb-btn" id="btn-lights">LIGHTS</button>
+    </div>
+    <div id="bb-right">
+      <button class="bb-btn bb-sim" id="btn-sim-alarm">SIM ALARM</button>
+      <button class="bb-btn" id="btn-settings">SETTINGS</button>
+      <div class="bb-divider"></div>
+      <div id="operator-badge">OP: J.DAVIS</div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

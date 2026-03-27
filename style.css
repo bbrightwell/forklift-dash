@@ -1,0 +1,422 @@
+/* === RESET & BASE === */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+  background: #080808;
+  color: #e0e0e0;
+  font-family: 'Helvetica Neue', Helvetica, sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+  user-select: none;
+}
+
+/* === SAFETY BAR === */
+#safety-bar {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 0;
+  background: #040e06;
+  border-bottom: 0.5px solid #161616;
+  transition: background 0.3s;
+  z-index: 100;
+}
+#safety-bar.warn { background: #0e0a00; }
+#safety-bar.alarm { background: #0e0404; }
+
+.safety-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  border-right: 0.5px solid #181818;
+  height: 100%;
+}
+.safety-zone:last-of-type { border-right: none; }
+
+.sz-label {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #484848;
+  text-transform: uppercase;
+}
+.sz-value {
+  font-size: 12px;
+  font-weight: 400;
+  color: #b0b0b0;
+}
+.sz-disabled { color: #333; }
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-ok { background: #4caf50; }
+.dot-warn { background: #ffb300; animation: blink-warn 1s infinite; }
+.dot-alarm { background: #f44336; animation: blink-alarm 0.4s infinite; }
+.dot-disabled { background: #333; }
+
+@keyframes blink-warn {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+@keyframes blink-alarm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.1; }
+}
+
+#can-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #484848;
+}
+#can-status.can-disconnected { color: #f44336; }
+#can-status.can-disconnected .status-dot { background: #f44336; animation: blink-alarm 0.4s infinite; }
+
+/* === MAIN LAYOUT === */
+#main {
+  display: flex;
+  height: calc(100vh - 44px - 46px); /* total - safety - bottom */
+}
+
+/* === LEFT PANEL === */
+#left-panel {
+  width: 190px;
+  background: #0b0b0b;
+  border-right: 0.5px solid #161616;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.panel-divider {
+  height: 0;
+  border-top: 0.5px solid #181818;
+}
+
+.section-label {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #484848;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* Speed gauge */
+#speed-gauge-container {
+  position: relative;
+  text-align: center;
+}
+#speed-gauge { display: block; margin: 0 auto; }
+#speed-value {
+  font-size: 42px;
+  font-weight: 200;
+  color: #fff;
+  line-height: 1;
+  margin-top: -20px;
+}
+#speed-unit {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #484848;
+}
+
+/* Direction pills */
+#direction-indicator, #traction-mode { text-align: center; }
+.pill-group {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.pill {
+  width: 46px;
+  height: 28px;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #111;
+  color: #555;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pill:hover { border-color: #333; }
+.pill-f.active { background: #4fc3f7; color: #000; border-color: #4fc3f7; }
+.pill-n.active { background: #ffb300; color: #000; border-color: #ffb300; }
+.pill-r.active { background: #f44336; color: #fff; border-color: #f44336; }
+.pill-mode.active { background: #222; color: #e0e0e0; border-color: #4fc3f7; }
+
+/* Motor current bar */
+#motor-current-container { padding: 2px 0; }
+#motor-current-bar {
+  display: flex;
+  align-items: center;
+  height: 14px;
+  background: #111;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.mc-bar { height: 100%; transition: width 0.2s; }
+.mc-regen { background: #4caf50; margin-left: auto; width: 0; }
+#mc-divider {
+  width: 2px;
+  height: 100%;
+  background: #333;
+  flex-shrink: 0;
+}
+.mc-draw { background: #4fc3f7; width: 0; }
+#mc-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  color: #484848;
+  letter-spacing: 0.8px;
+  margin-top: 2px;
+}
+#mc-value { color: #b0b0b0; font-size: 10px; }
+
+/* Stats grid */
+#stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.stat-cell { text-align: center; }
+.stat-value {
+  font-size: 16px;
+  font-weight: 300;
+  color: #e0e0e0;
+}
+
+/* === CENTER PANEL === */
+#center-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #080808;
+  position: relative;
+  overflow: hidden;
+}
+
+#canvas-wrapper {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+#three-canvas, #callout-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+#callout-canvas { pointer-events: none; z-index: 10; }
+
+#fork-height-strip {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-top: 0.5px solid #161616;
+  background: #0b0b0b;
+  gap: 10px;
+}
+#fork-progress-track {
+  flex: 1;
+  height: 6px;
+  background: #111;
+  border-radius: 3px;
+  overflow: hidden;
+}
+#fork-progress-fill {
+  height: 100%;
+  width: 0;
+  background: #4fc3f7;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+#fork-height-value {
+  font-size: 13px;
+  font-weight: 400;
+  color: #e0e0e0;
+  min-width: 50px;
+  text-align: right;
+}
+.badge {
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-ok { background: #0a1f0c; color: #4caf50; }
+.badge-warn { background: #1a1400; color: #ffb300; }
+.badge-alarm { background: #1a0808; color: #f44336; }
+
+/* === RIGHT PANEL === */
+#right-panel {
+  width: 240px;
+  background: #0b0b0b;
+  border-left: 0.5px solid #161616;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* Battery hero */
+#battery-hero { text-align: center; }
+#batt-soc {
+  font-size: 56px;
+  font-weight: 200;
+  color: #fff;
+  line-height: 1;
+}
+.batt-unit { font-size: 24px; color: #888; }
+#batt-voltage {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 8px;
+}
+#batt-soc-bar-track {
+  height: 8px;
+  background: #111;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+#batt-soc-bar-fill {
+  height: 100%;
+  background: #4caf50;
+  border-radius: 4px;
+  transition: width 0.5s, background 0.5s;
+}
+#batt-soc-bar-fill.amber { background: #ffb300; }
+#batt-soc-bar-fill.red { background: #f44336; }
+
+#batt-details { text-align: left; }
+.batt-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 0.5px solid #181818;
+}
+.batt-label { font-size: 9px; letter-spacing: 1px; color: #484848; }
+.batt-val { font-size: 12px; color: #b0b0b0; }
+
+/* Operating hours */
+.op-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #b0b0b0;
+  padding: 2px 0;
+}
+.op-row span:first-child { font-size: 9px; letter-spacing: 1px; color: #484848; align-self: center; }
+#pm-bar-track {
+  height: 4px;
+  background: #111;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+#pm-bar-fill {
+  height: 100%;
+  background: #4fc3f7;
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+
+/* Hydraulic gauge */
+#hyd-section { text-align: center; }
+#hyd-gauge-wrap { position: relative; }
+#hyd-gauge { display: block; margin: 0 auto; }
+#hyd-psi-value {
+  font-size: 24px;
+  font-weight: 300;
+  color: #e0e0e0;
+  margin-top: -10px;
+}
+.hyd-unit { font-size: 11px; color: #484848; }
+
+/* Tilt */
+#tilt-section { text-align: center; }
+#tilt-value {
+  font-size: 36px;
+  font-weight: 200;
+  color: #fff;
+  line-height: 1.1;
+}
+#tilt-dir {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: #484848;
+}
+
+/* Charge */
+#charge-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#charge-text { font-size: 12px; color: #b0b0b0; }
+.charging-anim { animation: blink-warn 1.2s infinite; }
+
+/* === BOTTOM BAR === */
+#bottom-bar {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: #0b0b0b;
+  border-top: 0.5px solid #161616;
+}
+#bb-left, #bb-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bb-btn {
+  height: 33px;
+  padding: 0 14px;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #111;
+  color: #b0b0b0;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bb-btn:hover { background: #1a1a1a; border-color: #333; color: #e0e0e0; }
+.bb-btn:active { background: #222; }
+.bb-sim { border-color: #f44336; color: #f44336; }
+.bb-sim:hover { background: #1a0808; }
+.bb-divider {
+  width: 0;
+  height: 24px;
+  border-left: 0.5px solid #181818;
+  margin: 0 4px;
+}
+#operator-badge {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #484848;
+  padding: 0 8px;
+}
