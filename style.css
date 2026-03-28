@@ -216,12 +216,11 @@ html, body {
   position: relative;
   min-height: 0;
 }
-#three-canvas, #callout-canvas {
+#model-viewer-frame {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
 }
-#callout-canvas { pointer-events: none; z-index: 10; }
 
 #fork-height-strip {
   height: 36px;

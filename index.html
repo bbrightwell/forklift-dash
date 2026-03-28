@@ -5,14 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Forklift Dashboard</title>
   <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-    }
-  }
-  </script>
+  <!-- Three.js importmap removed — center panel now uses SVG/photo-based model viewer -->
 </head>
 <body>
   <!-- SAFETY BAR -->
@@ -116,8 +109,8 @@
     <!-- CENTER PANEL -->
     <div id="center-panel">
       <div id="canvas-wrapper">
-        <canvas id="three-canvas"></canvas>
-        <canvas id="callout-canvas"></canvas>
+        <iframe id="model-viewer-frame" src="forklift-model-viewer.html"
+                style="width:100%;height:100%;border:none;background:#0a0a0a;"></iframe>
       </div>
       <div id="fork-height-strip">
         <div class="section-label" style="margin-right:10px;">FORK HEIGHT</div>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forklift Dashboard Concept v2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+.screen{background:#080808;color:#fff;font-family:'Helvetica Neue',Helvetica,sans-serif;border-radius:10px;overflow:hidden;width:100%;max-width:1200px;display:flex;flex-direction:column}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:.95}}
+.sbar{height:44px;display:flex;align-items:center;padding:0 14px;gap:0;flex-shrink:0;border-bottom:1px solid #111;transition:background .35s}
+.sbar.ok{background:#040e06}.sbar.warn{background:#100c00}.sbar.alarm{background:#0e0404}
+.sz{display:flex;align-items:center;gap:7px;padding:0 12px;height:100%;border-right:.5px solid #161616;cursor:pointer;transition:background .15s;user-select:none}
+.sz:hover{background:rgba(255,255,255,.04)}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.slbl{font-size:9px;letter-spacing:.9px;color:#555}
+.sval{font-size:12px;font-weight:500}
+.s-ok .sdot{background:#4caf50}.s-ok .sval{color:#4caf50}
+.s-warn .sdot{background:#ffb300;animation:blink 1.4s ease-in-out infinite}.s-warn .sval{color:#ffb300}
+.s-alarm .sdot{background:#f44336;animation:blink .7s step-end infinite}.s-alarm .sval{color:#f44336}
+.sr{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:11px;color:#383838}
+.mn{flex:1;display:grid;grid-template-columns:200px 1fr 240px;min-height:0}
+.lp{background:#0b0b0b;border-right:.5px solid #1a1a1a;display:flex;flex-direction:column;align-items:center;padding:14px 10px;gap:10px}
+.cp{background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;position:relative;padding:12px 10px}
+.rp{background:#0b0b0b;border-left:.5px solid #1a1a1a;display:flex;flex-direction:column;padding:14px 12px;gap:10px}
+.bb{height:52px;background:#111;border-top:.5px solid #1e1e1e;display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0}
+.sec-label{font-size:9px;color:#444;letter-spacing:1.2px;width:100%;text-align:center}
+.divider{height:.5px;background:#1a1a1a;width:100%;margin:2px 0}
+.dir-row{display:flex;gap:6px}
+.dir-btn{width:42px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;cursor:pointer;border:.5px solid #222;background:#111;color:#444;transition:all .15s}
+.dir-btn.fwd.active{background:#0d2a3a;border-color:#4fc3f7;color:#4fc3f7}
+.dir-btn.neu.active{background:#1a1a0d;border-color:#ffb300;color:#ffb300}
+.dir-btn.rev.active{background:#1a0d0d;border-color:#ef5350;color:#ef5350}
+.speed-ring{position:relative;width:120px;height:120px;flex-shrink:0}
+.speed-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.speed-num{font-size:36px;font-weight:300;line-height:1}
+.speed-unit{font-size:9px;color:#555;letter-spacing:1px;margin-top:2px}
+.mode-row{display:flex;gap:5px;width:100%}
+.mode-btn{flex:1;height:28px;border-radius:5px;border:.5px solid #222;background:#111;font-size:10px;color:#555;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mode-btn.active{background:#0d2a3a;border-color:#4fc3f7;color:#4fc3f7}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%}
+.stat-cell{background:#111;border-radius:6px;padding:6px 8px;text-align:center;cursor:pointer;transition:background .15s}
+.stat-cell:hover{background:#161616}
+.stat-v{font-size:15px;font-weight:400}
+.stat-l{font-size:9px;color:#555;margin-top:2px}
+.batt-hero{width:100%;background:#0f0f0f;border-radius:8px;padding:10px 12px;border:.5px solid #1a1a1a}
+.batt-soc-row{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.batt-pct{font-size:34px;font-weight:300;line-height:1;color:#4caf50}
+.batt-bar-wrap{height:10px;background:#1a1a1a;border-radius:5px;overflow:hidden;margin-bottom:6px}
+.batt-bar-fill{height:100%;border-radius:5px;background:#4caf50}
+.batt-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.batt-kv{font-size:12px;font-weight:400}
+.batt-kl{font-size:9px;color:#555;margin-top:1px}
+.chem-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;border-radius:4px;padding:2px 6px;cursor:pointer}
+.chem-badge.la{background:#1a1200;border:.5px solid #ffb300;color:#ffb300}
+.chem-badge.li{background:#0d1a2a;border:.5px solid #4fc3f7;color:#4fc3f7}
+.hours-val{font-size:20px;font-weight:300}
+.hours-lbl{font-size:9px;color:#555;margin-top:1px}
+.pm-bar{height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;margin-top:4px}
+.pm-fill{height:100%;border-radius:2px;background:#4fc3f7}
+.hyd-gauge{width:100%;display:flex;align-items:center;gap:8px}
+.charge-row{display:flex;align-items:center;gap:8px;font-size:12px}
+.charge-dot{width:7px;height:7px;border-radius:50%;background:#555}
+.touch-btn{height:36px;border-radius:8px;background:#111;border:.5px solid #1a1a1a;color:#666;font-size:11px;padding:0 12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap}
+.touch-btn:hover{background:#161616;border-color:#333;color:#aaa}
+.touch-btn.active{background:#0d2a3a;border-color:#4fc3f7;color:#4fc3f7}
+.tooltip-box{position:absolute;background:#111;border:.5px solid #333;border-radius:8px;padding:10px 14px;font-size:12px;color:#aaa;z-index:50;max-width:240px;pointer-events:none;opacity:0;transition:opacity .2s;line-height:1.6}
+.tooltip-box.show{opacity:1}
+.zone-tag{position:absolute;font-size:9px;background:rgba(79,195,247,.1);border:.5px solid rgba(79,195,247,.35);color:#4fc3f7;padding:2px 7px;border-radius:3px;cursor:pointer;letter-spacing:.5px;transition:background .15s}
+.zone-tag:hover{background:rgba(79,195,247,.2)}
+.alarm-banner{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(244,67,54,.08);border:1.5px solid rgba(244,67,54,.4);border-radius:4px;pointer-events:none}
+.alarm-banner.show{display:block}
+.map-placeholder{flex:1;background:#141a14;border-radius:6px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:60px}
+.can-badge{font-size:8px;background:rgba(79,195,247,.1);color:#4fc3f7;border:.5px solid rgba(79,195,247,.3);border-radius:3px;padding:1px 4px;white-space:nowrap}
+.fh-strip{width:90%;background:#0d0d0d;border-radius:6px;padding:8px 12px;border:.5px solid #1a1a1a;display:flex;align-items:center;gap:12px;margin-top:8px}
+.fh-badge{font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.fh-ok{background:#0d2a0d;color:#4caf50;border:.5px solid #2e7d32}
+.fh-warn{background:#150f00;color:#ffb300;border:.5px solid #4a3800}
+.fh-alarm{background:#150505;color:#f44336;border:.5px solid #4a1010}
+</style>
+</head>
+<body>
+<div class="screen" id="mainscreen">
+
+  <div class="sbar ok" id="safetybar">
+    <div class="sz s-ok" id="sz-seat" onclick="toggleSeat()">
+      <div class="sdot"></div>
+      <div><div class="slbl">DEADMAN</div><div class="sval" id="seat-val">SEATED</div></div>
+    </div>
+    <div class="sz s-ok" id="sz-tilt" onclick="cycleTilt()">
+      <div class="sdot"></div>
+      <div><div class="slbl">MAST TILT</div><div class="sval" id="tilt-val">3.2° BACK</div></div>
+    </div>
+    <div class="sz s-ok" id="sz-hyd" onclick="cycleHyd()">
+      <div class="sdot"></div>
+      <div><div class="slbl">HYD PRESSURE</div><div class="sval" id="hyd-val">2,180 PSI</div></div>
+    </div>
+    <div class="sz" style="cursor:default">
+      <div class="sdot" style="background:#1e1e1e"></div>
+      <div><div class="slbl">LOAD SENSOR</div><div class="sval" style="color:#282828">NOT FITTED</div></div>
+    </div>
+    <div class="sr">
+      <span style="color:#2a3a28">CAN OK</span>
+      <span>●●●● WiFi</span>
+      <span style="font-size:14px;font-weight:500;color:#ccc">10:24</span>
+    </div>
+  </div>
+
+  <div class="mn">
+
+    <div class="lp">
+      <div style="position:absolute;top:8px;left:8px" class="can-badge">CAN: 0x0C0</div>
+      <div class="sec-label" style="margin-top:16px">TRAVEL SPEED</div>
+      <div class="speed-ring">
+        <svg viewBox="0 0 120 120" style="position:absolute;inset:0;width:100%;height:100%">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="#1a1a1a" stroke-width="6"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="#4fc3f7" stroke-width="6"
+            stroke-dasharray="130 327" stroke-dashoffset="82" stroke-linecap="round" transform="rotate(-210 60 60)"/>
+          <text x="60" y="84" text-anchor="middle" font-size="8" fill="#333" font-family="Helvetica Neue">0      12mph</text>
+        </svg>
+        <div class="speed-value">
+          <span class="speed-num">4.7</span>
+          <span class="speed-unit">MPH</span>
+        </div>
+      </div>
+      <div class="sec-label">DIRECTION</div>
+      <div class="dir-row">
+        <div class="dir-btn fwd active" id="dir-f" onclick="setDir('f')">F</div>
+        <div class="dir-btn neu" id="dir-n" onclick="setDir('n')">N</div>
+        <div class="dir-btn rev" id="dir-r" onclick="setDir('r')">R</div>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-label">TRACTION MODE</div>
+      <div class="mode-row">
+        <div class="mode-btn active" id="mode-eco" onclick="setMode('eco')">ECO</div>
+        <div class="mode-btn" id="mode-std" onclick="setMode('std')">STD</div>
+        <div class="mode-btn" id="mode-pwr" onclick="setMode('pwr')">PWR</div>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-label">MOTOR CURRENT</div>
+      <div style="width:100%">
+        <div style="height:6px;background:#1a1a1a;border-radius:3px;display:flex;overflow:hidden">
+          <div style="width:50%;display:flex;justify-content:flex-end"><div style="width:0%;height:100%;background:#2e7d32;border-radius:3px 0 0 3px"></div></div>
+          <div style="width:1px;background:#333"></div>
+          <div style="width:50%"><div style="width:28%;height:100%;background:#4fc3f7;border-radius:0 3px 3px 0"></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px">
+          <span style="font-size:9px;color:#2e7d32">◀ REGEN</span>
+          <span style="font-size:9px;color:#4fc3f7">DRAW ▶</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-grid">
+        <div class="stat-cell"><div class="stat-v" style="color:#ef5350">147°F</div><div class="stat-l">MOTOR TEMP</div></div>
+        <div class="stat-cell"><div class="stat-v" style="color:#ffb300">131°F</div><div class="stat-l">CTRL TEMP</div></div>
+        <div class="stat-cell"><div class="stat-v" style="color:#ccc">3,847</div><div class="stat-l">HOURS</div></div>
+        <div class="stat-cell"><div class="stat-v" style="color:#ffb300">43h</div><div class="stat-l">NEXT SVC</div></div>
+      </div>
+    </div>
+
+    <div class="cp" id="centerpanel">
+      <div style="font-size:9px;color:#1a2a1a;letter-spacing:2px;margin-bottom:6px">FORKLIFT VISUALIZATION — TAP ZONES FOR DETAIL</div>
+      <div style="position:relative;width:100%;flex:1;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 420 340" style="width:90%;max-width:440px">
+          <ellipse cx="388" cy="330" rx="220" ry="11" fill="#020408" opacity=".9"/>
+          <rect x="140" y="80" width="200" height="160" rx="12" fill="#111" stroke="#252525" stroke-width="1"/>
+          <rect x="148" y="88" width="184" height="100" rx="6" fill="#0a1a0a" stroke="#1a2a1a" stroke-width=".5"/>
+          <text x="240" y="143" text-anchor="middle" font-size="11" fill="#4caf50" font-family="Helvetica Neue" font-weight="500">OPERATOR CAB</text>
+          <rect x="295" y="95" width="28" height="18" rx="3" fill="#0d2a3a" stroke="#4fc3f7" stroke-width=".5"/>
+          <text x="309" y="108" text-anchor="middle" font-size="7" fill="#4fc3f7" font-family="Helvetica Neue">DISPLAY</text>
+          <rect x="155" y="200" width="170" height="12" rx="3" fill="#0f1f0f" stroke="#2e7d32" stroke-width=".5" opacity=".8"/>
+          <text x="240" y="210" text-anchor="middle" font-size="7" fill="#4caf50" font-family="Helvetica Neue">BATTERY PACK</text>
+          <rect x="140" y="240" width="200" height="50" rx="8" fill="#0e0e0e" stroke="#222" stroke-width="1"/>
+          <text x="240" y="270" text-anchor="middle" font-size="9" fill="#555" font-family="Helvetica Neue">COUNTERWEIGHT</text>
+          <ellipse cx="175" cy="298" rx="28" ry="12" fill="#0a0a0a" stroke="#333" stroke-width="1"/>
+          <ellipse cx="175" cy="298" rx="18" ry="8" fill="#111" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <ellipse cx="305" cy="298" rx="28" ry="12" fill="#0a0a0a" stroke="#333" stroke-width="1"/>
+          <ellipse cx="305" cy="298" rx="18" ry="8" fill="#111" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <rect x="62" y="30" width="14" height="240" rx="4" fill="#111" stroke="#252525" stroke-width="1"/>
+          <rect x="86" y="30" width="14" height="240" rx="4" fill="#111" stroke="#252525" stroke-width="1"/>
+          <line x1="56" y1="30" x2="56" y2="270" stroke="#1a1a1a" stroke-width="6" stroke-linecap="round"/>
+          <g id="fork-carriage">
+            <rect x="40" y="120" width="70" height="16" rx="3" fill="#1a1a1a" stroke="#333" stroke-width=".5"/>
+            <rect x="40" y="136" width="55" height="7" rx="2" fill="#1a2a1a" stroke="#2e7d32" stroke-width=".5"/>
+            <rect x="40" y="143" width="55" height="7" rx="2" fill="#1a2a1a" stroke="#2e7d32" stroke-width=".5"/>
+            <line x1="40" y1="136" x2="40" y2="270" stroke="#1e2e1e" stroke-width="3" stroke-linecap="round"/>
+            <line x1="90" y1="136" x2="90" y2="270" stroke="#1e2e1e" stroke-width="3" stroke-linecap="round"/>
+            <rect x="40" y="270" width="60" height="5" rx="2" fill="#2e7d32" stroke="#4caf50" stroke-width=".5" opacity=".8"/>
+            <text id="height-lbl" x="20" y="138" text-anchor="middle" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue">48"</text>
+            <line x1="30" y1="136" x2="36" y2="136" stroke="#4fc3f7" stroke-width=".5"/>
+          </g>
+          <rect x="55" y="18" width="20" height="14" rx="3" fill="#0d2a3a" stroke="#4fc3f7" stroke-width=".5" opacity=".8"/>
+          <text x="65" y="29" text-anchor="middle" font-size="7" fill="#4fc3f7" font-family="Helvetica Neue">LIFT</text>
+          <rect x="195" y="32" width="90" height="28" rx="5" fill="#0f1f0f" stroke="#2e7d32" stroke-width=".5"/>
+          <text x="240" y="48" text-anchor="middle" font-size="9" fill="#4caf50" font-family="Helvetica Neue" font-weight="500">78% · 52.4V</text>
+          <text x="240" y="60" text-anchor="middle" font-size="8" fill="#2e7d32" font-family="Helvetica Neue">BATTERY OK</text>
+          <!-- Callouts left -->
+          <circle cx="70" cy="148" r="3" fill="#4fc3f7" opacity=".9"/>
+          <line x1="68" y1="148" x2="18" y2="118" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <line x1="18" y1="118" x2="2" y2="118" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <text x="4" y="114" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue" font-weight="500">MAST</text>
+          <text x="4" y="125" font-size="9" fill="#1a4060" font-family="Helvetica Neue">CAN 0x205</text>
+          <circle cx="175" cy="298" r="3" fill="#4fc3f7" opacity=".9"/>
+          <line x1="173" y1="298" x2="18" y2="280" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <line x1="18" y1="280" x2="2" y2="280" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <text x="4" y="276" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue" font-weight="500">DRIVE AXLE</text>
+          <text x="4" y="287" font-size="9" fill="#1a4060" font-family="Helvetica Neue">CAN 0x0C0</text>
+          <!-- Callouts right -->
+          <circle cx="240" cy="88" r="3" fill="#4fc3f7" opacity=".9"/>
+          <line x1="243" y1="88" x2="340" y2="60" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <line x1="340" y1="60" x2="418" y2="60" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <text x="294" y="56" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue" font-weight="500">OVERHEAD GUARD</text>
+          <circle cx="240" cy="210" r="3" fill="#4caf50" opacity=".9"/>
+          <line x1="243" y1="210" x2="340" y2="182" stroke="#4caf50" stroke-width=".5" opacity=".5"/>
+          <line x1="340" y1="182" x2="418" y2="182" stroke="#4caf50" stroke-width=".5" opacity=".5"/>
+          <text x="286" y="178" font-size="9" fill="#4caf50" font-family="Helvetica Neue" font-weight="500">BATTERY 78%</text>
+          <text x="286" y="189" font-size="9" fill="#185028" font-family="Helvetica Neue">CAN 0x620</text>
+          <circle cx="338" cy="264" r="3" fill="#4fc3f7" opacity=".9"/>
+          <line x1="341" y1="264" x2="380" y2="242" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <line x1="380" y1="242" x2="418" y2="242" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <text x="294" y="238" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue" font-weight="500">COUNTERWEIGHT</text>
+          <circle cx="305" cy="298" r="3" fill="#4fc3f7" opacity=".9"/>
+          <line x1="308" y1="298" x2="380" y2="310" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <line x1="380" y1="310" x2="418" y2="310" stroke="#4fc3f7" stroke-width=".5" opacity=".5"/>
+          <text x="294" y="306" font-size="9" fill="#4fc3f7" font-family="Helvetica Neue" font-weight="500">STEER AXLE</text>
+          <text x="294" y="317" font-size="9" fill="#1a4060" font-family="Helvetica Neue">CAN 0x3D0</text>
+        </svg>
+        <div class="zone-tag" style="top:8%;left:2%" onclick="showTip('Mast assembly — height encoder CAN 0x205. Tilt from angle sensor CAN 0x215. Travel interlock above 24 inches.')">Mast / lift</div>
+        <div class="zone-tag" style="top:30%;right:2%" onclick="showTip('Operator cab — seat switch (deadman) CAN 0x300. Display mounted on dash. Horn, lights, mode controls on touchscreen.')">Operator cab</div>
+        <div class="zone-tag" style="bottom:22%;left:2%" onclick="showTip('Counterweight — cast iron, 5,500 lb. Balances the load. Used in real-time stability / tip-over calculations.')">Counterweight</div>
+        <div class="zone-tag" style="bottom:8%;right:2%" onclick="showTip('Drive wheels — front wheel drive. Motor encoder provides speed CAN 0x0C0. Rear-wheel steer on sit-down counterbalance.')">Drive wheels</div>
+        <div class="alarm-banner" id="alarm-banner"></div>
+        <div id="center-tooltip" class="tooltip-box" style="bottom:80px;left:50%;transform:translateX(-50%)"></div>
+      </div>
+
+      <div class="fh-strip">
+        <div style="font-size:9px;color:#444;letter-spacing:1px">FORK HEIGHT</div>
+        <div style="flex:1;height:8px;background:#1a1a1a;border-radius:4px;overflow:hidden">
+          <div id="fh-bar" style="height:100%;width:20%;background:#4fc3f7;border-radius:4px;transition:width .3s"></div>
+        </div>
+        <div id="fh-label" style="font-size:14px;font-weight:500;color:#4fc3f7;min-width:48px;text-align:right">48"</div>
+        <div style="font-size:9px;color:#444">/ 240" max</div>
+        <div class="fh-badge fh-ok" id="fh-status">TRAVEL OK</div>
+      </div>
+      <div style="width:90%;display:flex;align-items:center;gap:8px;margin-top:4px">
+        <span style="font-size:9px;color:#1a2a1a">0"</span>
+        <input type="range" min="0" max="240" value="48" style="flex:1" oninput="updFH(this.value)">
+        <span style="font-size:9px;color:#1a2a1a">240"</span>
+      </div>
+    </div>
+
+    <div class="rp">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="sec-label" style="width:auto">BATTERY</div>
+        <div class="chem-badge la" id="chem-badge" onclick="toggleChem()">PB-ACID</div>
+      </div>
+      <div class="batt-hero">
+        <div class="batt-soc-row">
+          <div class="batt-pct" id="batt-pct-num">78</div>
+          <div style="font-size:14px;color:#555;margin-bottom:4px">%</div>
+          <div style="margin-left:auto;text-align:right">
+            <div style="font-size:13px;font-weight:400;color:#ccc" id="batt-volt">52.4 V</div>
+            <div style="font-size:9px;color:#555">PACK VOLTAGE</div>
+          </div>
+        </div>
+        <div class="batt-bar-wrap">
+          <div class="batt-bar-fill" id="batt-fill" style="width:78%"></div>
+        </div>
+        <div class="batt-meta">
+          <div><div class="batt-kv" id="batt-temp">89°F</div><div class="batt-kl">PACK TEMP</div></div>
+          <div><div class="batt-kv">94%</div><div class="batt-kl">STATE OF HEALTH</div></div>
+          <div><div class="batt-kv">312</div><div class="batt-kl">CHARGE CYCLES</div></div>
+          <div><div class="batt-kv" id="batt-warning" style="color:#ffb300">20% min</div><div class="batt-kl">THRESHOLD</div></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-label">OPERATING HOURS</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div class="hours-val">3,847 h</div><div class="hours-lbl">TOTAL HOURS</div></div>
+        <div style="text-align:right"><div class="hours-val" style="color:#ffb300">43 h</div><div class="hours-lbl">NEXT SERVICE</div></div>
+      </div>
+      <div class="pm-bar"><div class="pm-fill" style="width:74%"></div></div>
+      <div style="font-size:9px;color:#333;margin-top:2px">PM due at 3,890 h · 250h interval</div>
+      <div class="divider"></div>
+      <div class="sec-label">HYDRAULIC SYSTEM</div>
+      <div class="hyd-gauge">
+        <svg viewBox="0 0 60 36" width="60" height="36">
+          <path d="M6 34 A28 28 0 0 1 54 34" fill="none" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
+          <path d="M6 34 A28 28 0 0 1 54 34" fill="none" stroke="#4fc3f7" stroke-width="5" stroke-linecap="round" stroke-dasharray="56 88"/>
+          <text x="30" y="34" text-anchor="middle" font-size="8" fill="#4fc3f7" font-family="Helvetica Neue">PSI</text>
+        </svg>
+        <div>
+          <div style="font-size:15px;font-weight:400">2,180 PSI</div>
+          <div style="font-size:9px;color:#555">MAX 3,000 PSI · CAN 0x210</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-label">TILT ANGLE</div>
+      <div style="font-size:22px;font-weight:300;color:#ffb300">3.2° <span style="font-size:11px;color:#4a3400">BACK</span></div>
+      <div style="font-size:9px;color:#333">CAN 0x215 · ok for travel</div>
+      <div class="divider"></div>
+      <div class="charge-row">
+        <div class="charge-dot"></div>
+        <div>
+          <div style="color:#555">Not charging</div>
+          <div style="font-size:9px;color:#333">Plug in to opportunity charge</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bb">
+    <div class="touch-btn active">LIFT: SLOW</div>
+    <div class="touch-btn">LIFT: FAST</div>
+    <div style="width:.5px;height:28px;background:#1a1a1a;margin:0 4px"></div>
+    <div class="touch-btn">HORN</div>
+    <div class="touch-btn">LIGHTS</div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div class="touch-btn" onclick="simulateAlarm()">SIM ALARM</div>
+      <div class="touch-btn">SETTINGS</div>
+      <div style="display:flex;align-items:center;gap:6px;padding:0 10px;border-radius:8px;background:#111;border:.5px solid #1a1a1a;height:36px">
+        <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="4" r="2.5" fill="none" stroke="#666" stroke-width="1"/><path d="M2 11 Q6 7 10 11" fill="none" stroke="#666" stroke-width="1"/></svg>
+        <span style="font-size:11px;color:#666">OP: J.DAVIS</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var alarmActive=false,seatOk=true,tiltState=0,hydState=0,chemLi=false;
+var tiltStates=[{v:'3.2° BACK',cls:'s-ok'},{v:'0.0° LEVEL',cls:'s-warn'},{v:'8.1° FWD ⚠',cls:'s-alarm'}];
+var hydStates=[{v:'2,180 PSI',cls:'s-ok'},{v:'2,740 PSI',cls:'s-warn'},{v:'3,010 PSI ⚠',cls:'s-alarm'}];
+var tipTimeout=null;
+
+function updateBarState(){
+  var bar=document.getElementById('safetybar');
+  var hasAlarm=!seatOk||tiltState===2||hydState===2;
+  var hasWarn=tiltState===1||hydState===1;
+  bar.className='sbar '+(hasAlarm?'alarm':hasWarn?'warn':'ok');
+}
+function toggleSeat(){
+  seatOk=!seatOk;
+  var el=document.getElementById('sz-seat');
+  el.className='sz '+(seatOk?'s-ok':'s-alarm');
+  document.getElementById('seat-val').textContent=seatOk?'SEATED':'VACANT ⚠';
+  updateBarState();
+}
+function cycleTilt(){
+  tiltState=(tiltState+1)%3;
+  var s=tiltStates[tiltState];
+  document.getElementById('sz-tilt').className='sz '+s.cls;
+  document.getElementById('tilt-val').textContent=s.v;
+  updateBarState();
+}
+function cycleHyd(){
+  hydState=(hydState+1)%3;
+  var s=hydStates[hydState];
+  document.getElementById('sz-hyd').className='sz '+s.cls;
+  document.getElementById('hyd-val').textContent=s.v;
+  updateBarState();
+}
+function setDir(d){
+  document.getElementById('dir-f').className='dir-btn fwd'+(d==='f'?' active':'');
+  document.getElementById('dir-n').className='dir-btn neu'+(d==='n'?' active':'');
+  document.getElementById('dir-r').className='dir-btn rev'+(d==='r'?' active':'');
+}
+function setMode(m){
+  ['eco','std','pwr'].forEach(function(x){
+    document.getElementById('mode-'+x).className='mode-btn'+(x===m?' active':'');
+  });
+}
+function toggleChem(){
+  chemLi=!chemLi;
+  var b=document.getElementById('chem-badge');
+  b.className='chem-badge '+(chemLi?'li':'la');
+  b.textContent=chemLi?'LITHIUM-ION':'PB-ACID';
+  document.getElementById('batt-warning').textContent=chemLi?'20% (BMS)':'20% ⚠ SULFATION';
+  document.getElementById('batt-volt').textContent=chemLi?'52.6 V':'52.4 V';
+  document.getElementById('batt-temp').textContent=chemLi?'82°F':'89°F';
+}
+function updFH(v){
+  v=parseInt(v);
+  var pct=Math.round(v/240*100);
+  document.getElementById('fh-bar').style.width=pct+'%';
+  document.getElementById('fh-label').textContent=v+'"';
+  document.getElementById('height-lbl').textContent=v+'"';
+  var lift=Math.round(v/240*120);
+  document.getElementById('fork-carriage').setAttribute('transform','translate(0,'+(-lift)+')');
+  var s=document.getElementById('fh-status');
+  if(v<=8){s.className='fh-badge fh-ok';s.textContent='TRAVEL OK';}
+  else if(v<=24){s.className='fh-badge fh-warn';s.textContent='RAISED';}
+  else{s.className='fh-badge fh-alarm';s.textContent='INTERLOCK ACTIVE';}
+}
+function showTip(msg){
+  var el=document.getElementById('center-tooltip');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(tipTimeout);
+  tipTimeout=setTimeout(function(){el.classList.remove('show');},3500);
+}
+function simulateAlarm(){
+  if(alarmActive)return;
+  alarmActive=true;
+  var banner=document.getElementById('alarm-banner');
+  seatOk=false;
+  document.getElementById('sz-seat').className='sz s-alarm';
+  document.getElementById('seat-val').textContent='VACANT ⚠';
+  document.getElementById('safetybar').className='sbar alarm';
+  banner.classList.add('show');
+  setTimeout(function(){
+    banner.classList.remove('show');
+    seatOk=true;
+    document.getElementById('sz-seat').className='sz s-ok';
+    document.getElementById('seat-val').textContent='SEATED';
+    updateBarState();
+    alarmActive=false;
+  },3000);
+}
+</script>
+</body>
+</html>

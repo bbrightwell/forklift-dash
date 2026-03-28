@@ -1,40 +1,54 @@
 # Forklift CAN Bus Dashboard
 
 ## Project Overview
-Full-screen CAN bus dashboard for electric forklifts. Tesla-style dark UI with real-time 3D vehicle visualization and live CAN data. Runs on Raspberry Pi 5 in Chromium kiosk mode.
+Full-screen CAN bus dashboard for the Linde 1252/1254 electric counterbalance forklift. Tesla-style dark UI with real-time vehicle visualization and live CAN data. Runs on Raspberry Pi in Chromium kiosk mode.
 
 ## Tech Stack
 - **Frontend**: Vanilla HTML/CSS/JS — no build step, no npm
-- **3D**: Three.js via CDN importmap (v0.160.0), GLTFLoader for `forklift.glb`
+- **Model viewer**: `forklift-model-viewer.html` — reference photograph as base image, animated SVG fork/carriage overlay. Public API: `window.LindeModel.setForkHeight(inches)`
 - **CAN bridge**: Python (`python-can` + `websockets`) — `can-bridge/bridge.py`
 - **Transport**: WebSocket from Python bridge to browser
 - **Runtime**: Chromium kiosk, served over local HTTP (not file://)
 
 ## File Structure
 ```
-index.html          — Main dashboard (single page)
-style.css           — All styles, responsive (100vw/100vh)
-forklift.glb        — 3D forklift model (~32MB, CC BY 4.0)
-start.sh            — Launch script (bridge + HTTP server + Chromium)
+forklift_dash_concept_v2.html  — Standalone interactive dashboard concept (no deps)
+forklift-model-viewer.html     — Photo-based model viewer, animated SVG forks
+index.html                     — Main dashboard entry point (production)
+style.css                      — All styles, responsive (100vw/100vh)
+start.sh                       — Launch script (bridge + HTTP server + Chromium)
 js/
-  main.js           — App entry, boot sequence
-  scene.js          — Three.js scene, camera, lighting, OrbitControls
-  forklift-model.js — GLB loader, fork height animation, 2D callout overlay
-  can-client.js     — WebSocket client, CAN data handler
-  gauges.js         — Speed arc, hydraulic gauge (canvas 2D)
-  battery.js        — Battery SoC/SoH/temp display
-  safety-bar.js     — Top safety bar state machine
-  ui.js             — Bottom bar, direction/mode pills, data binding
+  main.js                      — App entry, boot sequence
+  scene.js                     — Three.js scene, camera, lighting (production shell)
+  forklift-model.js            — Calls window.LindeModel.setForkHeight() for fork animation
+  can-client.js                — WebSocket client, CAN data handler
+  gauges.js                    — Speed arc, hydraulic gauge (canvas 2D)
+  battery.js                   — Battery SoC/SoH/temp display
+  safety-bar.js                — Top safety bar state machine
+  ui.js                        — Bottom bar, direction/mode pills, data binding
 can-bridge/
-  bridge.py         — python-can → WebSocket server (--simulate flag for dev)
-  decoder.py        — CAN ID → signal name/value mapping
-  signals.json      — CAN signal definitions (arb IDs, scales, offsets)
+  bridge.py                    — python-can → WebSocket server (--simulate flag for dev)
+  decoder.py                   — CAN ID → signal name/value mapping
+  signals.json                 — CAN signal definitions (arb IDs, scales, offsets)
 ```
 
+Note: `forklift.glb` has been removed from the repo and is excluded via `.gitignore`.
+The center panel now uses `forklift-model-viewer.html` instead of a Three.js GLB scene.
+
 ## Development
-- Serve with `python3 -m http.server 8080` from project root (file:// breaks GLB loading)
-- Run bridge separately: `python3 can-bridge/bridge.py --simulate`
+- Open `forklift_dash_concept_v2.html` directly in a browser — fully self-contained, no server needed
+- Or serve with `python3 -m http.server 8080` from project root
+- Run bridge in simulation: `python3 can-bridge/bridge.py --simulate`
 - Or use `./start.sh` which starts both + Chromium kiosk
+
+## Model Viewer Integration
+The fork height animation is driven through a public API on `forklift-model-viewer.html`:
+
+```js
+window.LindeModel.setForkHeight(inches); // 0–240 inches
+```
+
+Wire this to the decoded CAN signal from ID `0x205` in `js/forklift-model.js`.
 
 ## Key CAN Signals
 | Arb ID | Signal          | Unit    |
@@ -54,7 +68,6 @@ can-bridge/
 
 ## Conventions
 - No build tools, bundlers, or npm packages in the frontend
-- All Three.js imports via CDN importmap in index.html
 - Dark theme (#080808 base), accent blue (#4fc3f7), green (#4caf50), amber (#ffb300), red (#f44336)
+- Linde brand red: #C82418
 - Layout uses flexbox, responsive to window size
-- 3D model callouts rendered on a 2D canvas overlay synced to the Three.js camera
