@@ -4,12 +4,14 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Start the CAN-to-WebSocket bridge (simulated data if no can0)
-if ip link show can0 &>/dev/null; then
-    python3 "$DIR/can-bridge/bridge.py" &
-else
-    python3 "$DIR/can-bridge/bridge.py" --simulate &
-fi
+# Kill any previous instances
+kill $(lsof -t -i :8080) 2>/dev/null || true
+kill $(lsof -t -i :8765) 2>/dev/null || true
+sleep 0.3
+
+# Start the CAN-to-WebSocket bridge
+# If can0 is present it reads live; otherwise idles waiting for SIM toggle
+python3 "$DIR/can-bridge/bridge.py" &
 BRIDGE_PID=$!
 
 # Start a local HTTP server for the dashboard
@@ -19,10 +21,9 @@ HTTP_PID=$!
 # Wait briefly for servers to be ready
 sleep 1
 
-# Launch Chromium in kiosk mode
-chromium --kiosk --disable-infobars --noerrdialogs \
-    --disable-session-crashed-bubble --disable-translate \
-    --no-first-run --start-fullscreen \
+# Launch Chromium in a normal window
+chromium --disable-session-crashed-bubble --disable-translate \
+    --no-first-run \
     "http://localhost:8080" &
 CHROME_PID=$!
 

@@ -38,6 +38,13 @@ function connect() {
   ws.onmessage = (evt) => {
     try {
       const data = JSON.parse(evt.data);
+
+      // Handle sim status updates from bridge
+      if (data.sim_status !== undefined) {
+        window.dispatchEvent(new CustomEvent('sim-status', { detail: data.sim_status }));
+        return;
+      }
+
       window.dispatchEvent(new CustomEvent('can-data', { detail: data }));
     } catch (e) { /* ignore malformed */ }
   };
@@ -59,6 +66,13 @@ function scheduleReconnect() {
     reconnectTimer = null;
     connect();
   }, RECONNECT_MS);
+}
+
+/** Send a command to the bridge */
+export function sendCommand(cmd) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ cmd }));
+  }
 }
 
 export function initCanClient() {

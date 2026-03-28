@@ -29,8 +29,8 @@ export function drawSpeedGauge(mph) {
   if (fraction > 0.005) {
     const valEnd = startAngle + fraction * Math.PI;
     const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-    grad.addColorStop(0, '#f44336');
-    grad.addColorStop(1, '#ff7043');
+    grad.addColorStop(0, '#A00020');
+    grad.addColorStop(1, '#cc1133');
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, valEnd);
     ctx.strokeStyle = grad;
@@ -91,8 +91,8 @@ export function drawHydGauge(psi) {
   if (fraction > 0.005) {
     const valEnd = startAngle + fraction * Math.PI;
     const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-    grad.addColorStop(0, '#4fc3f7');
-    grad.addColorStop(1, '#4caf50');
+    grad.addColorStop(0, '#A00020');
+    grad.addColorStop(1, '#cc1133');
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, valEnd);
     ctx.strokeStyle = grad;

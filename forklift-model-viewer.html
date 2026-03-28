@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0a0a;
+    overflow: hidden;
+  }
+  #viewer {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #forklift-img {
+    max-width: 92%;
+    max-height: 88%;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  /* SVG overlay positioned absolutely on top of the image */
+  #fork-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  #height-label {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #4fc3f7;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #height-label.visible {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+<div id="viewer">
+  <img id="forklift-img" src="e20.webp" alt="Linde E20 Forklift">
+  <svg id="fork-overlay" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+    <!-- Carriage / fork group that moves up -->
+    <g id="fork-group">
+      <!-- Mast carriage indicator bar -->
+      <rect id="carriage-bar" x="228" y="268" width="8" height="28" rx="2"
+            fill="#4fc3f7" opacity="0.85"/>
+      <!-- Fork tines -->
+      <g id="fork-tines" opacity="0.75">
+        <rect x="80" y="290" width="170" height="7" rx="2" fill="#4fc3f7"/>
+        <rect x="80" y="304" width="170" height="7" rx="2" fill="#4fc3f7"/>
+      </g>
+    </g>
+    <!-- Mast travel guide lines -->
+    <line x1="232" y1="100" x2="232" y2="268" stroke="#4fc3f7" stroke-width="1"
+          stroke-dasharray="4,4" opacity="0"/>
+  </svg>
+  <div id="height-label">0.0"</div>
+</div>
+
+<script>
+(function() {
+  const MAX_INCHES = 240;
+  // How far the fork group can travel upward in SVG units
+  const MAX_TRAVEL_SVG = 180;
+
+  const forkGroup = document.getElementById('fork-group');
+  const guideLines = document.querySelector('#fork-overlay line');
+  const heightLabel = document.getElementById('height-label');
+
+  let currentHeight = 0;
+  let labelTimeout = null;
+
+  function setForkHeight(inches) {
+    const clamped = Math.max(0, Math.min(MAX_INCHES, inches));
+    currentHeight = clamped;
+    const ratio = clamped / MAX_INCHES;
+    const translateY = -ratio * MAX_TRAVEL_SVG;
+
+    forkGroup.setAttribute('transform', 'translate(0,' + translateY + ')');
+
+    // Show guide lines when forks are raised
+    if (ratio > 0.01) {
+      guideLines.setAttribute('opacity', '0.3');
+      guideLines.setAttribute('y2', 268 + translateY);
+    } else {
+      guideLines.setAttribute('opacity', '0');
+    }
+
+    // Show height label briefly
+    heightLabel.textContent = clamped.toFixed(1) + '"';
+    heightLabel.classList.add('visible');
+    clearTimeout(labelTimeout);
+    labelTimeout = setTimeout(function() {
+      heightLabel.classList.remove('visible');
+    }, 2000);
+  }
+
+  // Expose public API
+  window.LindeModel = {
+    setForkHeight: setForkHeight,
+    getForkHeight: function() { return currentHeight; }
+  };
+})();
+</script>
+</body>
+</html>

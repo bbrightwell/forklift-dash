@@ -4,6 +4,7 @@ import { drawSpeedGauge, drawHydGauge } from './gauges.js';
 import { updateBattery } from './battery.js';
 import { setSafetyZone } from './safety-bar.js';
 import { setForkHeight } from './forklift-model.js';
+import { initPowerGraph, pushCurrentSample } from './power-graph.js';
 
 // Current state — initialised with plausible defaults
 const state = {
@@ -19,12 +20,17 @@ const state = {
   motor_current: 0,
   motor_temp: 142,
   hour_meter: 4218.3,
+  throttle: 0,        // 0–100%
+  brake: 0,           // 0 or 1
 };
 
 const DIR_MAP = { 0: 'N', 1: 'F', 2: 'R' };
 const PM_INTERVAL = 500; // hours
 
 export function initUI() {
+  // Init power graph canvas
+  initPowerGraph();
+
   // Initial render
   renderAll();
 
@@ -43,6 +49,8 @@ export function initUI() {
     if (d.motor_current !== undefined) state.motor_current = d.motor_current;
     if (d.motor_temp !== undefined) state.motor_temp = d.motor_temp;
     if (d.hour_meter !== undefined) state.hour_meter = d.hour_meter;
+    if (d.throttle !== undefined) state.throttle = d.throttle;
+    if (d.brake !== undefined) state.brake = d.brake;
     renderAll();
   });
 }
@@ -59,21 +67,35 @@ function renderAll() {
     p.classList.toggle('active', active);
   });
 
-  // Motor current bar
+  // Pedal bars
+  const thrFill = document.getElementById('throttle-fill');
+  const brkFill = document.getElementById('brake-fill');
+  const thrVal = document.getElementById('throttle-val');
+  const brkVal = document.getElementById('brake-val');
+  const thrPct = Math.max(0, Math.min(100, state.throttle));
+  thrFill.style.height = `${thrPct}%`;
+  thrVal.textContent = `${Math.round(thrPct)}%`;
+  thrVal.classList.toggle('active', thrPct > 0);
+  const braking = state.brake > 0;
+  brkFill.style.height = braking ? '100%' : '0%';
+  brkVal.textContent = braking ? 'ON' : 'OFF';
+  brkVal.classList.toggle('active', braking);
+
+  // Motor current — power graph
   const current = state.motor_current;
-  const maxCurrent = 500;
   const mcVal = document.getElementById('mc-value');
-  const mcRegen = document.getElementById('mc-regen');
-  const mcDraw = document.getElementById('mc-draw');
-  mcVal.textContent = `${Math.abs(current).toFixed(0)} A`;
-  if (current < 0) {
-    // Regen
-    mcRegen.style.width = `${Math.min(Math.abs(current) / maxCurrent * 50, 50)}%`;
-    mcDraw.style.width = '0';
+  const absA = Math.abs(current);
+  if (current < -0.5) {
+    mcVal.textContent = `${absA.toFixed(0)} A REGEN`;
+    mcVal.style.color = '#4caf50';
+  } else if (current > 0.5) {
+    mcVal.textContent = `${absA.toFixed(0)} A`;
+    mcVal.style.color = '#c0c0c0';
   } else {
-    mcRegen.style.width = '0';
-    mcDraw.style.width = `${Math.min(current / maxCurrent * 50, 50)}%`;
+    mcVal.textContent = '0 A';
+    mcVal.style.color = '#555';
   }
+  pushCurrentSample(current);
 
   // Motor temp
   document.getElementById('motor-temp-val').innerHTML = `${Math.round(state.motor_temp)}&deg;F`;
@@ -102,6 +124,32 @@ function renderAll() {
   const tiltDir = state.tilt_angle > 0.1 ? 'BACK' : state.tilt_angle < -0.1 ? 'FORWARD' : 'NEUTRAL';
   document.getElementById('tilt-value').innerHTML = `${tiltAbs.toFixed(1)}&deg;`;
   document.getElementById('tilt-dir').textContent = tiltDir;
+
+  // Tilt fork animation — positive = back (forks tilt away/clockwise), negative = forward (counter-clockwise)
+  const forkGroup = document.getElementById('tilt-fork-group');
+  const tiltArc = document.getElementById('tilt-arc');
+  if (forkGroup) {
+    // Clamp visual rotation to ±15° for readability, scale actual angle
+    const visualAngle = Math.max(-15, Math.min(15, state.tilt_angle * 1.5));
+    forkGroup.style.transform = `rotate(${visualAngle}deg)`;
+
+    // Draw angle arc from vertical to current angle
+    if (tiltArc && tiltAbs > 0.05) {
+      const cx = 60, cy = 70, r = 22;
+      const startRad = -Math.PI / 2; // straight up
+      const endRad = startRad + (visualAngle * Math.PI / 180);
+      const a1 = Math.min(startRad, endRad);
+      const a2 = Math.max(startRad, endRad);
+      const x1 = cx + r * Math.cos(a1);
+      const y1 = cy + r * Math.sin(a1);
+      const x2 = cx + r * Math.cos(a2);
+      const y2 = cy + r * Math.sin(a2);
+      const largeArc = (a2 - a1) > Math.PI ? 1 : 0;
+      tiltArc.setAttribute('d', `M${x1},${y1} A${r},${r} 0 ${largeArc} 1 ${x2},${y2}`);
+    } else if (tiltArc) {
+      tiltArc.setAttribute('d', '');
+    }
+  }
 
   // Safety bar — tilt
   if (tiltAbs > 8) {

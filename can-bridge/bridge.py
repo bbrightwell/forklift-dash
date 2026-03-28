@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """CAN-to-WebSocket bridge for Forklift Dashboard.
 
-Reads CAN messages from socketcan (can0) or simulates them,
-then broadcasts decoded signals as JSON over WebSocket.
+Reads CAN messages from socketcan (can0), replays a recorded log,
+or generates synthetic data — then broadcasts decoded signals as JSON
+over WebSocket.
+
+The dashboard can send JSON commands to toggle simulation:
+    {"cmd": "start_sim"}   — start replaying the CAN trace log
+    {"cmd": "stop_sim"}    — stop replay, return to idle/live
 
 Usage:
-    python3 bridge.py               # Live CAN bus on can0
-    python3 bridge.py --simulate    # Synthetic data for development
+    python3 bridge.py               # Live CAN bus on can0 (falls back to idle)
+    python3 bridge.py --simulate    # Start with synthetic data immediately
 """
 
 import argparse
@@ -23,14 +28,28 @@ SIGNALS = load_signals()
 WS_PORT = 8765
 CLIENTS = set()
 
+# Replay state
+_replay_task = None
+_sim_active = False
+
 
 # --------------- WebSocket server ---------------
 
 async def handler(websocket):
     CLIENTS.add(websocket)
+    # Send current sim state on connect
+    await websocket.send(json.dumps({"sim_status": _sim_active}))
     try:
-        async for _ in websocket:
-            pass  # We only send; ignore incoming
+        async for raw in websocket:
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            cmd = msg.get("cmd")
+            if cmd == "start_sim":
+                await start_replay()
+            elif cmd == "stop_sim":
+                await stop_replay()
     finally:
         CLIENTS.discard(websocket)
 
@@ -45,11 +64,69 @@ async def broadcast(data: dict):
     )
 
 
+# --------------- Log Replay ---------------
+
+async def replay_loop():
+    """Replay the CAN trace log in real time, looping when finished."""
+    global _sim_active
+    from log_replayer import LogReplayer
+
+    try:
+        replayer = LogReplayer()
+    except Exception as e:
+        print(f"Failed to load log replayer: {e}")
+        _sim_active = False
+        await broadcast({"sim_status": False, "sim_error": str(e)})
+        return
+
+    print(f"Replay started: {replayer.total_frames} frames, {replayer.duration:.1f}s duration")
+    await broadcast({"sim_status": True})
+
+    t0 = time.monotonic()
+
+    while _sim_active:
+        elapsed = time.monotonic() - t0
+        batch = replayer.get_next_batch(elapsed)
+
+        for signals in batch:
+            for key, value in signals.items():
+                await broadcast({key: value})
+
+        await asyncio.sleep(0.05)  # 20 Hz update rate
+
+    print("Replay stopped")
+
+
+async def start_replay():
+    global _replay_task, _sim_active
+    if _sim_active:
+        return
+    _sim_active = True
+    _replay_task = asyncio.create_task(replay_loop())
+    print("Simulation ON — replaying CAN trace log")
+
+
+async def stop_replay():
+    global _replay_task, _sim_active
+    if not _sim_active:
+        return
+    _sim_active = False
+    # Give the loop a moment to exit
+    if _replay_task:
+        try:
+            await asyncio.wait_for(_replay_task, timeout=2.0)
+        except asyncio.TimeoutError:
+            _replay_task.cancel()
+        _replay_task = None
+    await broadcast({"sim_status": False})
+    print("Simulation OFF")
+
+
 # --------------- Live CAN reader ---------------
 
 async def can_reader():
     """Read from socketcan interface and broadcast decoded signals."""
-    import can  # imported here so --simulate works without python-can
+    import can  # imported here so replay works without python-can hardware
 
     bus = can.interface.Bus(channel="can0", interface="socketcan")
     loop = asyncio.get_event_loop()
@@ -63,20 +140,22 @@ async def can_reader():
             await broadcast(decoded)
 
 
-# --------------- Simulator ---------------
+# --------------- Simulator (synthetic) ---------------
 
 async def simulator():
     """Generate synthetic forklift data for desk development."""
+    global _sim_active
+    _sim_active = True
+    await broadcast({"sim_status": True})
+
     t0 = time.time()
     battery_soc = 72.0
     motor_temp = 142.0
     hour_meter = 4218.3
-    last_seat_event = 0
 
-    while True:
+    while _sim_active:
         t = time.time() - t0
 
-        # Speed: ramp up to 5, hold, ramp back — 30s cycle
         cycle = t % 30
         if cycle < 10:
             speed = (cycle / 10) * 5
@@ -86,42 +165,19 @@ async def simulator():
             speed = 5.0 - ((cycle - 20) / 10) * 5
         speed = max(0, speed)
 
-        # Direction: F when moving forward, N when stopped
         direction = 1 if speed > 0.1 else 0
-
-        # Fork height: slow sine, 0–48 inches over 60s
-        fork_height = 24 + 24 * math.sin(t * 2 * math.pi / 60)
-        fork_height = max(0, fork_height)
-
-        # Hydraulic pressure: rises with fork movement
+        fork_height = max(0, 24 + 24 * math.sin(t * 2 * math.pi / 60))
         fork_vel = abs(math.cos(t * 2 * math.pi / 60))
         hyd_pressure = 600 + fork_vel * 800
-
-        # Tilt angle: gentle oscillation
         tilt_angle = 2.0 * math.sin(t * 2 * math.pi / 45)
-
-        # Battery drains slowly
         battery_soc = max(0, battery_soc - 0.001)
-        battery_voltage = 44.0 + (battery_soc / 100) * 8  # 44–52V range
-
-        # Battery temp creeps up
+        battery_voltage = 44.0 + (battery_soc / 100) * 8
         battery_temp = 90 + 5 * math.sin(t * 2 * math.pi / 120)
-
-        # Motor current: proportional to speed
-        motor_current = speed * 60  # 0–300A
-
-        # Motor temp warms slowly
+        motor_current = speed * 60
         motor_temp = min(220, motor_temp + 0.002)
+        hour_meter += 0.1 / 50
+        seat_switch = 0 if int(t) % 60 >= 58 else 1
 
-        # Hour meter ticks
-        hour_meter += 0.1 / 50  # ~1 tick per 500 cycles ≈ realistic
-
-        # Seat switch: vacant for 2s every 60s
-        seat_switch = 1
-        if int(t) % 60 >= 58:
-            seat_switch = 0
-
-        # Broadcast all signals
         await broadcast({"vehicle_speed": round(speed, 2)})
         await broadcast({"direction": int(direction)})
         await broadcast({"fork_height": round(fork_height, 1)})
@@ -135,7 +191,7 @@ async def simulator():
         await broadcast({"motor_temp": round(motor_temp, 1)})
         await broadcast({"hour_meter": round(hour_meter, 1)})
 
-        await asyncio.sleep(0.1)  # 10 Hz update rate
+        await asyncio.sleep(0.1)
 
 
 # --------------- Main ---------------
@@ -147,8 +203,16 @@ async def main(simulate=False):
             print("Simulation mode — generating synthetic forklift data")
             await simulator()
         else:
-            print("Live mode — reading from can0")
-            await can_reader()
+            # Try live CAN, fall back to idle (waiting for UI sim toggle)
+            try:
+                import can
+                can.interface.Bus(channel="can0", interface="socketcan")
+                print("Live mode — reading from can0")
+                await can_reader()
+            except Exception:
+                print("No CAN hardware — idle mode, waiting for SIM toggle from dashboard")
+                while True:
+                    await asyncio.sleep(1)
 
 
 if __name__ == "__main__":

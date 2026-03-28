@@ -3,7 +3,7 @@
 html, body {
   width: 100vw; height: 100vh;
   overflow: hidden;
-  background: #080808;
+  background: #060606;
   color: #e0e0e0;
   font-family: 'Helvetica Neue', Helvetica, sans-serif;
   font-weight: 300;
@@ -21,12 +21,23 @@ html, body {
   padding: 0 16px;
   gap: 0;
   background: #040e06;
+  border-top: 2px solid #A00020;
   border-bottom: 0.5px solid #161616;
   transition: background 0.3s;
   z-index: 100;
+  overflow-x: auto;
+  flex-shrink: 0;
 }
 #safety-bar.warn { background: #0e0a00; }
-#safety-bar.alarm { background: #0e0404; }
+#safety-bar.alarm {
+  background: #0e0404;
+  animation: alarm-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes alarm-pulse {
+  0%, 100% { background: #0e0404; }
+  50% { background: #180606; }
+}
 
 .safety-zone {
   display: flex;
@@ -47,7 +58,7 @@ html, body {
 .sz-value {
   font-size: 12px;
   font-weight: 400;
-  color: #b0b0b0;
+  color: #c0c0c0;
 }
 .sz-disabled { color: #333; }
 
@@ -70,8 +81,67 @@ html, body {
   50% { opacity: 0.1; }
 }
 
-#can-status {
+/* Linde logo badge — top-right of safety bar */
+#linde-badge {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+#linde-logo-badge {
+  background: #A00020;
+  border-radius: 4px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+#linde-logo-badge svg {
+  height: 16px;
+  width: auto;
+}
+
+/* SIM toggle button */
+.sim-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #111;
+  color: #555;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sim-toggle:hover {
+  border-color: #555;
+  color: #888;
+}
+.sim-toggle.active {
+  border-color: #A00020;
+  background: #1a0408;
+  color: #A00020;
+}
+.sim-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #333;
+  transition: background 0.2s;
+}
+.sim-toggle.active .sim-dot {
+  background: #A00020;
+  animation: blink-warn 1s infinite;
+}
+
+#can-status {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -91,13 +161,16 @@ html, body {
 /* === LEFT PANEL === */
 #left-panel {
   width: 190px;
-  background: #0b0b0b;
+  min-width: 140px;
+  flex-shrink: 1;
+  background: #080808;
   border-right: 0.5px solid #161616;
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .panel-divider {
@@ -111,6 +184,8 @@ html, body {
   color: #484848;
   text-transform: uppercase;
   margin-bottom: 4px;
+  padding-left: 8px;
+  border-left: 2px solid #A00020;
 }
 
 /* Speed gauge */
@@ -122,7 +197,7 @@ html, body {
 #speed-value {
   font-size: 42px;
   font-weight: 200;
-  color: #fff;
+  color: #ffffff;
   line-height: 1;
   margin-top: -20px;
 }
@@ -156,37 +231,77 @@ html, body {
 .pill-f.active { background: #4fc3f7; color: #000; border-color: #4fc3f7; }
 .pill-n.active { background: #ffb300; color: #000; border-color: #ffb300; }
 .pill-r.active { background: #f44336; color: #fff; border-color: #f44336; }
-.pill-mode.active { background: #222; color: #e0e0e0; border-color: #4fc3f7; }
+.pill-mode.active { background: #222; color: #e0e0e0; border-color: #A00020; }
 
-/* Motor current bar */
-#motor-current-container { padding: 2px 0; }
-#motor-current-bar {
+/* Pedal bars — throttle & brake */
+#pedal-section { padding: 2px 0; }
+.pedal-bars {
   display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: flex-end;
+}
+.pedal-bar-col {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  height: 14px;
+  width: 36px;
+}
+.pedal-track {
+  width: 14px;
+  height: 60px;
   background: #111;
   border-radius: 3px;
-  overflow: hidden;
   position: relative;
+  overflow: hidden;
+  border: 0.5px solid #1a1a1a;
 }
-.mc-bar { height: 100%; transition: width 0.2s; }
-.mc-regen { background: #4caf50; margin-left: auto; width: 0; }
-#mc-divider {
-  width: 2px;
-  height: 100%;
-  background: #333;
-  flex-shrink: 0;
+.pedal-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  border-radius: 2px;
+  transition: height 0.1s ease-out;
 }
-.mc-draw { background: #4fc3f7; width: 0; }
+.pedal-throttle-fill {
+  background: linear-gradient(to top, rgba(160, 0, 32, 0.4), #A00020);
+}
+.pedal-brake-fill {
+  background: linear-gradient(to top, rgba(244, 67, 54, 0.4), #f44336);
+}
+.pedal-label {
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: #484848;
+  margin-top: 3px;
+}
+.pedal-val {
+  font-size: 10px;
+  color: #555;
+  font-weight: 400;
+}
+.pedal-val.active { color: #c0c0c0; }
+
+/* Motor current / power graph */
+#motor-current-container { padding: 2px 0; }
+#mc-graph {
+  display: block;
+  width: 100%;
+  height: 80px;
+  border-radius: 4px;
+  background: #0a0a0a;
+}
 #mc-labels {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   font-size: 8px;
   color: #484848;
   letter-spacing: 0.8px;
   margin-top: 2px;
 }
-#mc-value { color: #b0b0b0; font-size: 10px; }
+#mc-value { color: #c0c0c0; font-size: 11px; font-weight: 400; }
 
 /* Stats grid */
 #stats-grid {
@@ -198,7 +313,7 @@ html, body {
 .stat-value {
   font-size: 16px;
   font-weight: 300;
-  color: #e0e0e0;
+  color: #ffffff;
 }
 
 /* === CENTER PANEL === */
@@ -206,7 +321,7 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #080808;
+  background: #060606;
   position: relative;
   overflow: hidden;
 }
@@ -215,11 +330,17 @@ html, body {
   flex: 1;
   position: relative;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-#model-viewer-frame {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+
+/* Linde script watermark in center panel */
+#linde-watermark {
+  opacity: 0.04;
+  width: 55%;
+  max-width: 400px;
+  height: auto;
 }
 
 #fork-height-strip {
@@ -228,7 +349,7 @@ html, body {
   align-items: center;
   padding: 0 16px;
   border-top: 0.5px solid #161616;
-  background: #0b0b0b;
+  background: #080808;
   gap: 10px;
 }
 #fork-progress-track {
@@ -241,14 +362,14 @@ html, body {
 #fork-progress-fill {
   height: 100%;
   width: 0;
-  background: #4fc3f7;
+  background: #A00020;
   border-radius: 3px;
   transition: width 0.3s;
 }
 #fork-height-value {
   font-size: 13px;
   font-weight: 400;
-  color: #e0e0e0;
+  color: #ffffff;
   min-width: 50px;
   text-align: right;
 }
@@ -267,13 +388,16 @@ html, body {
 /* === RIGHT PANEL === */
 #right-panel {
   width: 240px;
-  background: #0b0b0b;
+  min-width: 180px;
+  flex-shrink: 1;
+  background: #080808;
   border-left: 0.5px solid #161616;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Battery hero */
@@ -281,7 +405,7 @@ html, body {
 #batt-soc {
   font-size: 56px;
   font-weight: 200;
-  color: #fff;
+  color: #ffffff;
   line-height: 1;
 }
 .batt-unit { font-size: 24px; color: #888; }
@@ -314,14 +438,14 @@ html, body {
   border-bottom: 0.5px solid #181818;
 }
 .batt-label { font-size: 9px; letter-spacing: 1px; color: #484848; }
-.batt-val { font-size: 12px; color: #b0b0b0; }
+.batt-val { font-size: 12px; color: #c0c0c0; }
 
 /* Operating hours */
 .op-row {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #b0b0b0;
+  color: #c0c0c0;
   padding: 2px 0;
 }
 .op-row span:first-child { font-size: 9px; letter-spacing: 1px; color: #484848; align-self: center; }
@@ -334,7 +458,7 @@ html, body {
 }
 #pm-bar-fill {
   height: 100%;
-  background: #4fc3f7;
+  background: #A00020;
   border-radius: 2px;
   transition: width 0.5s;
 }
@@ -346,17 +470,23 @@ html, body {
 #hyd-psi-value {
   font-size: 24px;
   font-weight: 300;
-  color: #e0e0e0;
+  color: #ffffff;
   margin-top: -10px;
 }
 .hyd-unit { font-size: 11px; color: #484848; }
 
 /* Tilt */
 #tilt-section { text-align: center; }
+#tilt-viz {
+  width: 100%;
+  max-width: 160px;
+  margin: 4px auto 2px;
+}
+#tilt-svg { width: 100%; height: auto; display: block; }
 #tilt-value {
   font-size: 36px;
   font-weight: 200;
-  color: #fff;
+  color: #ffffff;
   line-height: 1.1;
 }
 #tilt-dir {
@@ -371,7 +501,7 @@ html, body {
   align-items: center;
   gap: 8px;
 }
-#charge-text { font-size: 12px; color: #b0b0b0; }
+#charge-text { font-size: 12px; color: #c0c0c0; }
 .charging-anim { animation: blink-warn 1.2s infinite; }
 
 /* === BOTTOM BAR === */
@@ -381,8 +511,10 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 12px;
-  background: #0b0b0b;
+  background: #080808;
   border-top: 0.5px solid #161616;
+  overflow-x: auto;
+  flex-shrink: 0;
 }
 #bb-left, #bb-right {
   display: flex;
@@ -395,7 +527,7 @@ html, body {
   border: 1px solid #222;
   border-radius: 6px;
   background: #111;
-  color: #b0b0b0;
+  color: #c0c0c0;
   font-family: inherit;
   font-size: 11px;
   font-weight: 400;
@@ -407,6 +539,8 @@ html, body {
 .bb-btn:active { background: #222; }
 .bb-sim { border-color: #f44336; color: #f44336; }
 .bb-sim:hover { background: #1a0808; }
+.bb-exit { border-color: #888; color: #888; }
+.bb-exit:hover { background: #1a1a1a; border-color: #aaa; color: #aaa; }
 .bb-divider {
   width: 0;
   height: 24px;
