@@ -5,13 +5,14 @@ import { updateBattery } from './battery.js';
 import { setSafetyZone } from './safety-bar.js';
 import { setForkHeight } from './forklift-model.js';
 import { initPowerGraph, pushCurrentSample } from './power-graph.js';
+import { initEnergyGraph, pushEnergySample } from './energy-graph.js';
 
 // Current state — initialised with plausible defaults
 const state = {
   speed: 0,
   direction: 0,      // 0=N, 1=F, 2=R
   fork_height: 0,
-  hyd_pressure: 850,
+  hyd_torque: 0,
   tilt_angle: 0,
   seat_switch: 1,     // 1=SEATED
   battery_soc: 72,
@@ -22,14 +23,18 @@ const state = {
   hour_meter: 4218.3,
   throttle: 0,        // 0–100%
   brake: 0,           // 0 or 1
+  energy_consumption: 0,   // kWh/h
+  remaining_work_time: -1, // minutes (-1 = not yet received)
+  truck_hours: 0,          // display controller lifetime hours
 };
 
 const DIR_MAP = { 0: 'N', 1: 'F', 2: 'R' };
 const PM_INTERVAL = 500; // hours
 
 export function initUI() {
-  // Init power graph canvas
+  // Init graph canvases
   initPowerGraph();
+  initEnergyGraph();
 
   // Initial render
   renderAll();
@@ -40,7 +45,7 @@ export function initUI() {
     if (d.vehicle_speed !== undefined) state.speed = d.vehicle_speed;
     if (d.direction !== undefined) state.direction = d.direction;
     if (d.fork_height !== undefined) state.fork_height = d.fork_height;
-    if (d.hyd_pressure !== undefined) state.hyd_pressure = d.hyd_pressure;
+    if (d.hyd_torque !== undefined) state.hyd_torque = d.hyd_torque;
     if (d.tilt_angle !== undefined) state.tilt_angle = d.tilt_angle;
     if (d.seat_switch !== undefined) state.seat_switch = d.seat_switch;
     if (d.battery_soc !== undefined) state.battery_soc = d.battery_soc;
@@ -51,6 +56,9 @@ export function initUI() {
     if (d.hour_meter !== undefined) state.hour_meter = d.hour_meter;
     if (d.throttle !== undefined) state.throttle = d.throttle;
     if (d.brake !== undefined) state.brake = d.brake;
+    if (d.energy_consumption !== undefined) state.energy_consumption = d.energy_consumption;
+    if (d.remaining_work_time !== undefined) state.remaining_work_time = d.remaining_work_time;
+    if (d.truck_hours !== undefined) state.truck_hours = d.truck_hours;
     renderAll();
   });
 }
@@ -97,27 +105,55 @@ function renderAll() {
   }
   pushCurrentSample(current);
 
+  // Energy consumption graph
+  pushEnergySample(state.energy_consumption);
+
   // Motor temp
   document.getElementById('motor-temp-val').innerHTML = `${Math.round(state.motor_temp)}&deg;F`;
 
-  // Hours
-  const totalH = state.hour_meter;
-  const nextSvc = PM_INTERVAL - (totalH % PM_INTERVAL);
-  document.getElementById('total-hours-val').textContent = totalH.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  // Hours — work hours (traction controller)
+  const workH = state.hour_meter;
+  const nextSvc = PM_INTERVAL - (workH % PM_INTERVAL);
+  document.getElementById('total-hours-val').textContent = workH.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   document.getElementById('next-svc-val').textContent = `${nextSvc.toFixed(1)} h`;
-  document.getElementById('op-total-val').textContent = `${totalH.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} h`;
+  document.getElementById('op-total-val').textContent = `${workH.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} h`;
   document.getElementById('op-next-val').textContent = `${nextSvc.toFixed(1)} h`;
+
+  // Truck hours (display controller — total lifetime)
+  const truckH = state.truck_hours;
+  const truckEl = document.getElementById('op-truck-val');
+  if (truckEl) {
+    truckEl.textContent = truckH > 0 ? `${truckH.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} h` : '-- h';
+  }
 
   // PM progress bar
   const pmProgress = ((PM_INTERVAL - nextSvc) / PM_INTERVAL) * 100;
   document.getElementById('pm-bar-fill').style.width = `${pmProgress}%`;
 
+  // Remaining work time
+  const rwt = state.remaining_work_time;
+  const rwtEl = document.getElementById('remaining-time-value');
+  if (rwtEl) {
+    if (rwt < 0) {
+      rwtEl.textContent = '--';
+      rwtEl.className = '';
+    } else if (rwt >= 60) {
+      const hrs = Math.floor(rwt / 60);
+      const mins = rwt % 60;
+      rwtEl.textContent = `${hrs}:${String(mins).padStart(2, '0')}`;
+      rwtEl.className = '';
+    } else {
+      rwtEl.textContent = `${rwt} min`;
+      rwtEl.className = rwt < 30 ? 'alarm' : 'warn';
+    }
+  }
+
   // Battery
   updateBattery(state.battery_soc, state.battery_voltage, state.battery_temp);
 
-  // Hydraulic gauge
-  drawHydGauge(state.hyd_pressure);
-  document.getElementById('hyd-psi-value').innerHTML = `${Math.round(state.hyd_pressure)}<span class="hyd-unit"> PSI</span>`;
+  // Hydraulic torque gauge
+  drawHydGauge(state.hyd_torque);
+  document.getElementById('hyd-psi-value').innerHTML = `${state.hyd_torque.toFixed(1)}<span class="hyd-unit"> Nm</span>`;
 
   // Tilt
   const tiltAbs = Math.abs(state.tilt_angle);
@@ -160,13 +196,13 @@ function renderAll() {
     setSafetyZone('tilt', 'ok', `${tiltAbs.toFixed(1)}°`);
   }
 
-  // Safety bar — pressure
-  if (state.hyd_pressure > 2800) {
-    setSafetyZone('pressure', 'alarm', `${Math.round(state.hyd_pressure)} PSI`);
-  } else if (state.hyd_pressure > 2500) {
-    setSafetyZone('pressure', 'warn', `${Math.round(state.hyd_pressure)} PSI`);
+  // Safety bar — hydraulic torque
+  if (state.hyd_torque > 25) {
+    setSafetyZone('pressure', 'alarm', `${state.hyd_torque.toFixed(1)} Nm`);
+  } else if (state.hyd_torque > 20) {
+    setSafetyZone('pressure', 'warn', `${state.hyd_torque.toFixed(1)} Nm`);
   } else {
-    setSafetyZone('pressure', 'ok', `${Math.round(state.hyd_pressure)} PSI`);
+    setSafetyZone('pressure', 'ok', `${state.hyd_torque.toFixed(1)} Nm`);
   }
 
   // Safety bar — deadman

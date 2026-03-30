@@ -11,6 +11,7 @@ Full-screen CAN bus dashboard for the **Linde E20 (1252/1254 series)** electric 
 - **Linde branding**: #A00020 brand red throughout, cursive logo badge, ghost watermark
 - **SIM toggle**: replay a real CAN trace log through the DBC decoder with animated motion overlay
 - **Tesla-style power graph**: rolling 30-second waveform showing draw (red) and regen (green)
+- **Energy consumption graph**: rolling 60-second kWh/h display with amber fill
 - **Tilt animation**: SVG fork visualization that rotates to match the live tilt angle
 - **Throttle/brake bars**: vertical fill bars tracking accelerator and brake pedal state
 - **Live CAN bus**: connects to SocketCAN (`can0`) when available, falls back to idle
@@ -98,16 +99,16 @@ forklift-dash/
 │   ├── can-client.js               # WebSocket client + sendCommand()
 │   ├── ui.js                       # Data binding, pedal bars, tilt viz
 │   ├── gauges.js                   # Speed/hydraulic arc gauges
+│   ├── energy-graph.js             # Rolling energy consumption graph (kWh/h)
 │   ├── power-graph.js              # Tesla-style rolling power graph
 │   ├── battery.js                  # Battery display
 │   ├── safety-bar.js               # Safety state machine
 │   ├── scene.js                    # Animation loop shell
 │   └── forklift-model.js           # Fork height API (future)
 └── can-bridge/
-    ├── bridge.py                   # WS server: live CAN / log replay / idle
+    ├── bridge.py                   # WS server: live CAN (20Hz) / log replay / idle
     ├── log_replayer.py             # DBC-decoded log replay + animated overlay
-    ├── decoder.py                  # Simple CAN decoder
-    └── signals.json                # Signal definitions
+    └── decoder.py                  # DBC-based decoder via cantools
 ```
 
 ---
@@ -119,7 +120,7 @@ forklift-dash/
 | 0x0C0 | vehicle_speed | mph | 0.01 | 0 |
 | 0x190 | direction | enum | 1 | 0 |
 | 0x205 | fork_height | inches | 0.1 | 0 |
-| 0x210 | hyd_pressure | PSI | 1.0 | 0 |
+| 0x182 | hyd_torque | Nm | via DBC | 0 |
 | 0x215 | tilt_angle | degrees | 0.1 | -10 |
 | 0x300 | seat_switch | bool | 1 | 0 |
 | 0x620 | battery_soc | % | 0.5 | 0 |

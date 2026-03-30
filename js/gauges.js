@@ -64,8 +64,8 @@ export function drawSpeedGauge(mph) {
   }
 }
 
-/** Draw the hydraulic pressure arc gauge on #hyd-gauge */
-export function drawHydGauge(psi) {
+/** Draw the hydraulic torque arc gauge on #hyd-gauge */
+export function drawHydGauge(nm) {
   const canvas = document.getElementById('hyd-gauge');
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
@@ -76,8 +76,8 @@ export function drawHydGauge(psi) {
   const r = 48;
   const startAngle = Math.PI;
   const endAngle = TAU;
-  const maxPsi = 3000;
-  const fraction = Math.min(psi / maxPsi, 1);
+  const maxNm = 30;
+  const fraction = Math.min(nm / maxNm, 1);
 
   // Background
   ctx.beginPath();
@@ -101,12 +101,12 @@ export function drawHydGauge(psi) {
     ctx.stroke();
   }
 
-  // Ticks at 0, 1000, 2000, 3000
+  // Ticks at 0, 10, 20, 30
   ctx.font = '9px Helvetica Neue, Helvetica, sans-serif';
   ctx.fillStyle = '#444';
   ctx.textAlign = 'center';
-  for (const val of [0, 1000, 2000, 3000]) {
-    const angle = startAngle + (val / maxPsi) * Math.PI;
+  for (const val of [0, 10, 20, 30]) {
+    const angle = startAngle + (val / maxNm) * Math.PI;
     const inner = r - 12;
     const outer = r - 5;
     ctx.beginPath();

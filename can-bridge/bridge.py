@@ -22,9 +22,8 @@ import time
 
 import websockets
 
-from decoder import load_signals, decode_message
+from decoder import decode_frame
 
-SIGNALS = load_signals()
 WS_PORT = 8765
 CLIENTS = set()
 
@@ -125,19 +124,38 @@ async def stop_replay():
 # --------------- Live CAN reader ---------------
 
 async def can_reader():
-    """Read from socketcan interface and broadcast decoded signals."""
+    """Read from socketcan interface and broadcast decoded signals at 20Hz."""
     import can  # imported here so replay works without python-can hardware
 
     bus = can.interface.Bus(channel="can0", interface="socketcan")
     loop = asyncio.get_event_loop()
 
-    while True:
-        msg = await loop.run_in_executor(None, bus.recv, 1.0)
-        if msg is None:
-            continue
-        decoded = decode_message(msg.arbitration_id, msg.data, SIGNALS)
-        if decoded:
-            await broadcast(decoded)
+    # Accumulate latest values from all frames, broadcast at fixed rate
+    pending = {}
+    pending_lock = asyncio.Lock()
+
+    async def reader_loop():
+        while True:
+            msg = await loop.run_in_executor(None, bus.recv, 1.0)
+            if msg is None:
+                continue
+            decoded = decode_frame(msg.arbitration_id, msg.data)
+            if decoded:
+                async with pending_lock:
+                    pending.update(decoded)
+
+    async def broadcast_loop():
+        while True:
+            await asyncio.sleep(0.05)  # 20 Hz
+            async with pending_lock:
+                if pending:
+                    snapshot = dict(pending)
+                    pending.clear()
+                else:
+                    continue
+            await broadcast(snapshot)
+
+    await asyncio.gather(reader_loop(), broadcast_loop())
 
 
 # --------------- Simulator (synthetic) ---------------
@@ -168,7 +186,7 @@ async def simulator():
         direction = 1 if speed > 0.1 else 0
         fork_height = max(0, 24 + 24 * math.sin(t * 2 * math.pi / 60))
         fork_vel = abs(math.cos(t * 2 * math.pi / 60))
-        hyd_pressure = 600 + fork_vel * 800
+        hyd_torque = 3 + fork_vel * 15
         tilt_angle = 2.0 * math.sin(t * 2 * math.pi / 45)
         battery_soc = max(0, battery_soc - 0.001)
         battery_voltage = 44.0 + (battery_soc / 100) * 8
@@ -177,11 +195,13 @@ async def simulator():
         motor_temp = min(220, motor_temp + 0.002)
         hour_meter += 0.1 / 50
         seat_switch = 0 if int(t) % 60 >= 58 else 1
+        energy_consumption = speed * 0.8 + fork_vel * 1.5
+        remaining_work_time = max(0, int(240 - t * 0.2))
 
         await broadcast({"vehicle_speed": round(speed, 2)})
         await broadcast({"direction": int(direction)})
         await broadcast({"fork_height": round(fork_height, 1)})
-        await broadcast({"hyd_pressure": round(hyd_pressure, 0)})
+        await broadcast({"hyd_torque": round(hyd_torque, 1)})
         await broadcast({"tilt_angle": round(tilt_angle, 1)})
         await broadcast({"seat_switch": seat_switch})
         await broadcast({"battery_soc": round(battery_soc, 1)})
@@ -190,6 +210,9 @@ async def simulator():
         await broadcast({"motor_current": round(motor_current, 1)})
         await broadcast({"motor_temp": round(motor_temp, 1)})
         await broadcast({"hour_meter": round(hour_meter, 1)})
+        await broadcast({"energy_consumption": round(energy_consumption, 2)})
+        await broadcast({"remaining_work_time": remaining_work_time})
+        await broadcast({"truck_hours": round(hour_meter + 71.0, 1)})
 
         await asyncio.sleep(0.1)
 

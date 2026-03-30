@@ -15,23 +15,14 @@ import time
 
 import cantools
 
+from decoder import _map_to_dashboard, RELEVANT_IDS, _DBC_DIR, _DBC_FILES
+
 # Paths
 LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "canbus-analysis-application", "logs", "session_4.log"
 )
-DBC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "canbus-definitions")
-
-DBC_FILES = ["CAN0_346_02.dbc", "battery_cb_24_10_2022.dbc"]
-
-RELEVANT_IDS = {
-    0x181,  # Traction_PDO1_38x  → TruckSpeed
-    0x281,  # Traction_PDO2      → T_Seat, T_motTemp_Lft, T_BatVolt, T_BatCurr
-    0x282,  # Lift_PDO2_can0     → LiftHeight, LiftTiltAng
-    0x304,  # Traction_PDO5      → TracDirLev
-    0x481,  # Traction_PDO4      → TruckWorkTime
-    0x48D,  # LiIoBMS_PDO4       → SOC
-    0x513,  # Lift_PDO6          → battery_temperature
-}
+DBC_DIR = _DBC_DIR
+DBC_FILES = _DBC_FILES
 
 LINE_RE = re.compile(
     r"\[([\d:.]+)\]\s+(\w+)\s+(0x[\dA-Fa-f]+)\s+\S+\s+\S+\s+((?:[0-9A-Fa-f]{2}\s*)+)"
@@ -49,69 +40,6 @@ def _load_dbc():
             if msg.frame_id in RELEVANT_IDS:
                 db_lookup[msg.frame_id] = msg
     return db_lookup
-
-
-def _map_to_dashboard(decoded: dict) -> dict:
-    """Map DBC signal names to dashboard signal names, clamping sentinel values."""
-    out = {}
-
-    if "TruckSpeed" in decoded:
-        v = abs(decoded["TruckSpeed"]) * 0.621371
-        if v < 50:  # sanity
-            out["vehicle_speed"] = round(v, 2)
-
-    if "TracDirLev" in decoded:
-        val = int(decoded["TracDirLev"])
-        if val <= 2:
-            out["direction"] = val
-
-    if "LiftHeight" in decoded:
-        mm = decoded["LiftHeight"]
-        # Sentinel: 0x7FFF raw → 31767mm after offset; any value > 10000mm is invalid
-        if 0 <= mm <= 10000:
-            out["fork_height"] = round(mm / 25.4, 1)
-        else:
-            out["fork_height"] = 0.0
-
-    if "LiftTiltAng" in decoded:
-        deg = decoded["LiftTiltAng"]
-        if -25 <= deg <= 25:
-            out["tilt_angle"] = round(deg, 1)
-        else:
-            out["tilt_angle"] = 0.0
-
-    if "T_Seat" in decoded:
-        out["seat_switch"] = int(decoded["T_Seat"])
-
-    if "T_BatVolt" in decoded:
-        v = decoded["T_BatVolt"]
-        if 0 < v < 100:
-            out["battery_voltage"] = round(v, 1)
-
-    if "T_BatCurr" in decoded:
-        out["motor_current"] = round(decoded["T_BatCurr"], 1)
-
-    if "T_motTemp_Lft" in decoded:
-        c = decoded["T_motTemp_Lft"]
-        if -40 <= c <= 200:
-            out["motor_temp"] = round(c * 9 / 5 + 32, 1)
-
-    if "LiIoBMS_SOCwithSOH" in decoded:
-        soc = decoded["LiIoBMS_SOCwithSOH"]
-        if 0 <= soc <= 100:
-            out["battery_soc"] = round(soc, 1)
-
-    if "TruckWorkTime" in decoded:
-        secs = decoded["TruckWorkTime"]
-        if secs > 0:
-            out["hour_meter"] = round(secs / 3600, 1)
-
-    if "battery_temperature" in decoded:
-        c = decoded["battery_temperature"]
-        if -40 <= c <= 100:
-            out["battery_temp"] = round(c * 9 / 5 + 32, 1)
-
-    return out
 
 
 def parse_log(path=LOG_PATH):
@@ -225,11 +153,11 @@ class LogReplayer:
             fork = 36.0 - ((fork_cycle - 30) / 15) * 36  # lower
         out["fork_height"] = round(max(0, fork), 1)
 
-        # Hydraulic pressure: rises when forks moving
+        # Hydraulic torque: rises when forks moving
         if fork_cycle < 15 or fork_cycle > 30:
-            out["hyd_pressure"] = round(1200 + 400 * abs(math.sin(t * 0.5)), 0)
+            out["hyd_torque"] = round(12 + 8 * abs(math.sin(t * 0.5)), 1)
         else:
-            out["hyd_pressure"] = round(650 + 100 * math.sin(t * 0.3), 0)
+            out["hyd_torque"] = round(3 + 2 * math.sin(t * 0.3), 1)
 
         # Tilt angle: gentle oscillation
         out["tilt_angle"] = round(2.0 * math.sin(t * 2 * math.pi / 40), 1)
@@ -283,6 +211,16 @@ class LogReplayer:
         # Hour meter from baseline
         base_hours = self._baseline.get("hour_meter", 43.0)
         out["hour_meter"] = round(base_hours + t / 3600, 1)
+
+        # Truck hours (offset from work hours to show they differ)
+        out["truck_hours"] = round(base_hours + 71.0 + t / 3600, 1)
+
+        # Energy consumption: proportional to speed + fork activity
+        fork_vel = abs(math.cos(t * 2 * math.pi / 45))
+        out["energy_consumption"] = round(speed * 0.6 + fork_vel * 1.2, 2)
+
+        # Remaining work time: drains from ~4 hours
+        out["remaining_work_time"] = max(0, int(240 - t * 0.15))
 
         return out
 
