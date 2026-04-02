@@ -125,6 +125,18 @@ def _map_to_dashboard(decoded: dict) -> dict:
         pct = decoded["kec_accelerator_pedal_position"]
         out["throttle"] = round(max(0, min(100, pct)), 0)
 
+    # --- Steering angle (radians) ---
+    if "kec_steering_angle" in decoded:
+        out["steering"] = round(decoded["kec_steering_angle"], 4)
+
+    # --- Fork joystick (0=neutral, 1=up, 2=down) ---
+    if "JoyLift" in decoded:
+        out["joy_lift"] = int(decoded["JoyLift"])
+
+    # --- Tilt joystick (0=neutral, 1=back, 2=fwd) ---
+    if "JoyTilt" in decoded:
+        out["joy_tilt"] = int(decoded["JoyTilt"])
+
     # --- Hydraulic motor torque (Nm) ---
     if "L1_estTorque" in decoded:
         torque = decoded["L1_estTorque"]

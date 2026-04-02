@@ -1,6 +1,6 @@
 /** CAN bus WebSocket client — connects to bridge.py and dispatches events */
 
-const WS_URL = 'ws://localhost:8765';
+const WS_URL = `ws://${location.hostname}:8765`;
 const RECONNECT_MS = 2000;
 
 let ws = null;
